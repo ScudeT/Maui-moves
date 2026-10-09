@@ -1,0 +1,11 @@
+est/imu_base:
+    ros__parameters:
+        source_frame: "imu_link"
+        target_frame: "base_link"
+
+est/simple_odom:
+  ros__parameters:
+    publish_rate: 50.0
+    gyro_cutoff: 1.0
+    header_frame: "odom"
+    child_frame: "base_link"

@@ -1,0 +1,4 @@
+path/:
+  ros__parameters:
+    threshold: 3.0
+    points: [ 45.89920, 9.33136, 45.89868, 9.33102]
