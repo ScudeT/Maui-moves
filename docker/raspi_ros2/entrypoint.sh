@@ -11,6 +11,13 @@ echo "Provided arguments: $@"
 # Change directory to your ROS2 workspace
 cd /home/ros/ros2_ws
 
+# Give the ros user ownership of the bind-mounted folders
+for dir in src bags; do
+  if [ -d "$dir" ]; then
+    sudo chown -R ros:ros "$dir"
+  fi
+done
+
 # If no arguments are provided, open an interactive bash terminal.
 if [ "$#" -eq 0 ]; then
   exec bash

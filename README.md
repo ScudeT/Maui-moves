@@ -72,7 +72,7 @@ Maui/
 │   ├── ms5837/             # Pressure/depth sensor driver
 │   ├── gtu7_gps_comm/      # GPS driver
 │   └── pwm_pca9685/        # PWM controller driver
-├── tools/                  # Offline utilities (e.g. rosbag covariance rewriting)
+├── tools/                  # Offline utilities (rosbag covariance rewriting, magnetometer calibration study)
 └── images/                 # Diagrams and schematics
 ```
 
@@ -141,7 +141,7 @@ The script handles: system update, I2C/UART activation, SSH, Docker install, gps
 
 1. **Docker daemon** starts automatically (systemd service installed with Docker)
 2. **Camera bridge** starts automatically (`maui-camera.service`) — exposes CSI cameras over HTTP
-3. **MAUI container** restarts automatically (Docker restart policy) — builds the workspace and launches `circle_path.launch.py`
+3. **MAUI container** restarts automatically (Docker restart policy) — builds the workspace and launches `just_keep_swimming.launch.py`
 
 **Attaching to the running container:**
 
@@ -149,7 +149,7 @@ The script handles: system update, I2C/UART activation, SSH, Docker install, gps
 docker exec -it maui_jazzy bash
 ```
 
-**Changing the default launch file** or understanding all available missions and tests:
+**Changing the default launch file** or understanding the available missions:
 → See [`ros2_ws/src/maui/README.md`](ros2_ws/src/maui/README.md)
 
 ### Development on a Personal Computer
@@ -191,4 +191,3 @@ Some packages include code derived from other open-source projects. The original
 | `mpu9250` | [hideakitai/MPU9250](https://github.com/hideakitai/MPU9250) — Hideaki Tai | MIT |
 | `ms5837` | [BlueRobotics MS5837 Library](https://github.com/bluerobotics/BlueRobotics_MS5837_Library) — BlueRobotics | MIT |
 | `pwm_pca9685` | [dheera/ros-pwm-pca9685](https://github.com/dheera/ros-pwm-pca9685) — Dheera Venkatraman | BSD 3-Clause (whole package) |
-| `parietal_lobe` (EKF configs) | [robot_localization](https://github.com/cra-ros-pkg/robot_localization) — Charles River Analytics | BSD 3-Clause |

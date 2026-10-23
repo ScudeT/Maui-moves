@@ -104,5 +104,4 @@ ros2 bag record /camera_1 /camera_2\
 # stop all ros2 nodes
 pkill -f ros2
 
-# copy recorded bags from the robot to your machine
-scp -r maui@<robot-ip>:~/Maui/ros2_ws/bags/<bag_folder> ./ros2_ws/bags
+scp -r maui@192.168.48.236:/home/maui/Maui/ros2_ws/bags/30_06_25 C:\Users\tommy\github\Maui\ros2_ws\bags

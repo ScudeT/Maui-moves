@@ -41,8 +41,15 @@ ament_target_dependencies(mpu9250_node
   sensor_msgs 
   std_msgs)
 
+add_executable(record_mag
+  src/record_mag.cpp
+  src/MPU9250.cpp
+  src/QuaternionFilter.cpp
+  src/Wire.cpp)
+
 install(TARGETS
   mpu9250_node
+  record_mag
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY config/ 

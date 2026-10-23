@@ -8,6 +8,7 @@ from launch_ros.actions import Node
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
+## launc
 
 def generate_launch_description():
     
@@ -16,7 +17,7 @@ def generate_launch_description():
     override_config_arg = os.path.join( # Path to parameters
         get_package_share_directory('maui'),
         'config', 
-        'CirclePath.yaml'
+        'maui.yaml'
     )
 
     config_arg = DeclareLaunchArgument(
@@ -27,6 +28,22 @@ def generate_launch_description():
     ld.add_action(config_arg)
 
     config_file = LaunchConfiguration('config_file')
+
+    # ------------------------------------------ #
+
+    # ------ Start the PNS ---------- #
+    PNS_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('brain_stem'),
+                'launch',  
+                'peripheral_nervous_system.launch.py'
+            )
+        )
+    )
+    
+    # Add the hardware launch at the beginning
+    ld.add_action(PNS_launch)
 
     
     # ------ Start the Thalamus ---------- #
@@ -72,7 +89,7 @@ def generate_launch_description():
     )
     
     # Add the hardware launch at the beginning
-    #ld.add_action(circle_path_launch)
+    ld.add_action(circle_path_launch)
 
     depth_path_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -122,7 +139,7 @@ def generate_launch_description():
     )
     
     # Add the hardware launch at the beginning
-    # ld.add_action(RMF_launch)
+    ld.add_action(RMF_launch)
 
     # Run everything
     return ld

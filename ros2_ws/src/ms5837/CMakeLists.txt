@@ -26,18 +26,10 @@ endif()
 
 include_directories(include)
 
-add_executable(ms5837_node src/ms5837_node.cpp src/MS5837.cpp)
-ament_target_dependencies(ms5837_node rclcpp sensor_msgs std_msgs  geometry_msgs)
-
 add_executable(pose_node src/pose_node.cpp src/MS5837.cpp)
 ament_target_dependencies(pose_node rclcpp geometry_msgs)
 
-add_executable(depth_to_pose src/depth_to_pose.cpp)
-ament_target_dependencies(depth_to_pose rclcpp sensor_msgs std_msgs geometry_msgs)
-
 install(TARGETS
-  ms5837_node
-  depth_to_pose
   pose_node
   DESTINATION lib/${PROJECT_NAME})
 

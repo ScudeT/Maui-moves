@@ -3,6 +3,7 @@ mpu9250:
     freq: 100.0        # Update rate of the heading estimation and data published (at least lower than the chosen FIFO_SAMPLE_RATE)
     frame_id: 'imu_link'
     filter: 1                 # 0: NONE, 1: MADGWICK, 2: MAHONY
+    mag_bias: [-211.0, 322.0, -472.0]   # hard-iron center in mG, from record_mag + ellipsoid fit
 
     # sensor specific parameters
     ##### SENSOR SPECIFIC PARAMETERS ######
@@ -57,8 +58,10 @@ GPS:
 
 button:
   ros__parameters:
-    freq: 50.0
+    freq: 200.0             # Sampling frequency (Hz)
     gpio_line: 4
-    break_time: 1.0
+    press_time: 0.04        # Line must be mostly high this long to accept a press (s)
+    release_time: 0.04      # Line must be mostly low this long to accept a release (s)
+    refractory_time: 0.25   # Presses ignored for this long after a release (s)
     release: true
 

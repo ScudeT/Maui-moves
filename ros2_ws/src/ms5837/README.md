@@ -10,7 +10,7 @@ ROS 2 driver for the BlueRobotics MS5837-02BA barometric depth and pressure sens
 |---|---|
 | **Interface** | I²C `/dev/i2c-1` |
 | **Sensor model** | MS5837-02BA |
-| **Fluid density** | 1000 kg/m³ (fresh water — change to 1029 for seawater) |
+| **Fluid density** | 1000 kg/m³ (fresh water), hardcoded in `src/pose_node.cpp` — change the `setFluidDensity` call to 1029 for seawater. The startup log message says 1029 regardless of the value set |
 
 ### Published topics
 
@@ -20,25 +20,18 @@ ROS 2 driver for the BlueRobotics MS5837-02BA barometric depth and pressure sens
 
 ### Parameters
 
-| Parameter | Default | Description |
-|---|---|---|
-| `freq` | `50.0` | Publish rate (Hz) |
-| `offset` | `0.0` | Depth offset (m) — use to zero the sensor at the water surface |
-| `variance` | `0.0001` | Depth measurement variance (m²) used in the covariance matrix |
-| `frame_id` | `"base_link"` | Frame for the published message header |
+| Parameter | Node default | Robot ([`PNS.yaml`](../maui_brain/brain_stem/config/PNS.yaml)) | Description |
+|---|---|---|---|
+| `freq` | `50.0` | `50.0` | Publish rate (Hz) |
+| `offset` | `0.0` | `-0.13` | Depth offset (m) — use to zero the sensor at the water surface |
+| `variance` | `0.0001` | `2.5e-8` | Depth measurement variance (m²) used in the covariance matrix |
+| `frame_id` | `"base_link"` | `"bar_link"` | Frame for the published message header |
+
+There is no standalone launch file — the node is started by `brain_stem/peripheral_nervous_system.launch.py`, or manually with `ros2 run ms5837 pose_node`.
 
 ### Covariance convention
 
 Only the `z`–`z` element of the 6×6 pose covariance is set to `variance`; x, y, and all rotation terms are set to `1e6` (effectively unknown), so the state estimator ignores those axes.
-
----
-
-## Other nodes in this package
-
-| Node | Description |
-|---|---|
-| `ms5837_node` | Earlier variant that publishes raw pressure and temperature separately |
-| `depth_to_pose` | Utility node that converts a raw depth Float topic to `PoseWithCovarianceStamped` |
 
 ---
 

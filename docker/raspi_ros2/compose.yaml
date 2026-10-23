@@ -31,9 +31,13 @@ services:
     privileged: true  # May be needed for full hardware access
     restart: unless-stopped  # restart automatically on boot via Docker daemon
     tty: true
-    command: >
-      bash -c "
-        colcon build --symlink-install &&
-        source install/local_setup.bash &&
-        ros2 launch maui circle_path.launch.py
-      "
+    command: 
+      - bash
+      - -c
+      - |
+        set -e
+        source /opt/ros/jazzy/setup.bash
+        cd /home/ros/ros2_ws
+        colcon build --symlink-install
+        source install/setup.bash
+        ros2 launch maui maui.launch.py

@@ -2,6 +2,8 @@
 
 Generates high-level references (yaw setpoints, depth profiles, GPS waypoints) that are fed into the attitude and depth controllers.
 
+Every launch file here declares a `config_file` argument. The `maui` mission launches pass their own mission YAML through it, so on the robot the values come from `maui/config/` rather than from this package's `config/` folder.
+
 ---
 
 ## Launch files
@@ -32,9 +34,4 @@ Config: [`config/GPSFollow.yaml`](config/GPSFollow.yaml)
 
 | Node | Role |
 |---|---|
-| `path/gps_follower` (`gps_target_follower_node`) | Computes bearing to target using haversine distance, publishes heading to `/attitude/yaw_set`. Advances through waypoint list as each threshold distance is met |
-
----
-
-### `circle_path_test.launch.py`
-Same as `circle_path.launch.py` but with test parameters. Used for tuning the yaw integrator without running the full stack.
+| `path/gps_follower` (`gps_target_follower_node`) | On each `/gps_data` fix, computes the bearing to the current target and publishes it as a heading on `/attitude/yaw_set`, and the target itself on `/path/gps_target`. When the haversine distance falls below `threshold` (m) it advances to the next waypoint in `points`, looping back to the first after the last |

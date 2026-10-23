@@ -1,130 +1,135 @@
 # `maui` — Top-level Launch Package
 
-This package is the entry point for running the robot. It contains no control logic of its own — it orchestrates the subsystem packages through a set of launch files, each composing a different configuration of the stack for a specific mission or test.
+This package is the entry point for running the robot. It contains no control logic of its own — it orchestrates the subsystem packages through three launch files, each starting the hardware drivers, state estimation and controllers.
 
-Every launch file loads a matching YAML config from [`config/`](config/) that parameterises all nodes in that run. For details on each subsystem, refer to the README in its source package under [`maui_brain/`](../maui_brain/).
+Each launch file declares a `config_file` argument that defaults to a matching YAML in [`config/`](config/). For details on each subsystem, refer to the README in its source package under [`maui_brain/`](../maui_brain/).
+
+| Launch | Config | Purpose |
+|---|---|---|
+| `just_keep_swimming.launch.py` | [`JustKeepSwimming.yaml`](config/JustKeepSwimming.yaml) | Swim straight at a fixed depth, no yaw control. **Started at boot** |
+| `maui.launch.py` | [`maui.yaml`](config/maui.yaml) | Integrated-yaw (circle) path with a sinusoidal depth reference |
+| `target_follow.launch.py` | [`TargetFollow.yaml`](config/TargetFollow.yaml) | GPS waypoint following with periodic surfacing |
 
 ---
 
 ## Launch Files
 
-### Mission launches — full robot
-
-These start the complete hardware and control stack and are the normal operating modes.
-
-#### `circle_path.launch.py`
-Closed-loop navigation along a horizontal circular trajectory with sinusoidal depth modulation.  
-Config: [`CirclePath.yaml`](config/CirclePath.yaml)
+### `just_keep_swimming.launch.py`
+Minimal swimming mission: the robot swims forward at the open-loop speed set by `A_m` while holding roll, pitch and depth. No path planners are started.  
+Config: [`JustKeepSwimming.yaml`](config/JustKeepSwimming.yaml)
 
 ```bash
-ros2 launch maui circle_path.launch.py
+ros2 launch maui just_keep_swimming.launch.py
 ```
 
-**Configuring yaw and depth behaviour** — edit [`CirclePath.yaml`](config/CirclePath.yaml) before launching:
+It starts the hardware drivers, state estimation, basic motor functions and the reflex/memory/fatigue layer. Unlike the other launches, it declares the attitude (`w_ctrl`, `q_ctrl`, `ypr_to_q`) and depth (`depth/ctrl`) controller nodes itself, so their gains come from `JustKeepSwimming.yaml` instead of the `cerebellum` configs:
 
 | Goal | Parameters to change |
 |---|---|
-| Faster / slower circle | `path/circle_yaw` → `wz` (rad/s) |
-| Disable yaw rotation (hover in place) | `wz: 0.0` |
+| Re-enable yaw control | `attitude/w_ctrl` → `wz_pid_settings` (all zeros = `A_d` always 0) |
+| Roll / pitch rate gains | `attitude/w_ctrl` → `wx_pid_settings`, `wy_pid_settings` |
+| Swimming depth | `depth/ctrl` → `set_0` (m, negative = depth; currently `0.05`) |
+| Depth gains | `depth/ctrl` → `pid_settings` |
+| Mission duration | `fatigue` → `time_out` (s, currently `120.0`) |
+| Topics recorded / bag folder | `memory` → `topics` / `parent_folder` (currently `bags/just_keep_swimming`) |
+
+A button press records a rosbag, resets the controllers, starts the fins and arms the timeout. `reflex/service_names` only lists services that exist in this launch, because each missing service stalls the reflex for 5 s.
+
+### `maui.launch.py` and `target_follow.launch.py`
+
+These two start the full stack through the subsystem launch files, and differ only in how the heading reference is generated. Their `config_file` parameterises the mission-level nodes (path planners, cameras, reflex/memory/fatigue), while the controllers keep using the `cerebellum` configs.
+
+| Subsystem | Included launch |
+|---|---|
+| Hardware drivers | `brain_stem/peripheral_nervous_system.launch.py` |
+| State estimation | `parietal_lobe/thalamus.launch.py` |
+| Depth + attitude control | `cerebellum/depth_and_attitude_controller.launch.py` |
+| Depth reference | `frontal_lobe/depth_sine.launch.py` |
+| Heading reference | `frontal_lobe/circle_path.launch.py` (`maui`) or `frontal_lobe/gps_target_follow.launch.py` (`target_follow`) |
+| Button / recording / timeout | `temporal_lobe/reflex_memory_fatigue.launch.py` |
+
+An `eyes` camera node (`occipital_lobe/cameras_client_node`) is defined in both launches but is currently not added to the launch description. Uncomment `ld.add_action(eyes)` to enable it.
+
+#### `maui.launch.py`
+Closed-loop navigation with an integrated yaw reference and a sinusoidal depth reference.  
+Config: [`maui.yaml`](config/maui.yaml)
+
+```bash
+ros2 launch maui maui.launch.py
+```
+
+With the current config (`wz: 0.0`, `amplitude: 0.0`) the robot holds its heading at a fixed depth of 0.3 m.
+
+**Configuring yaw and depth behaviour**: edit [`maui.yaml`](config/maui.yaml) before launching:
+
+| Goal | Parameters to change |
+|---|---|
+| Swim in a circle | `path/circle_yaw` → `wz` (rad/s, non-zero) |
+| Hold current heading | `wz: 0.0` |
 | Deeper / shallower oscillation | `path/depth_sine` → `amplitude` (m) and `offset` (m, negative = depth) |
-| Disable depth oscillation (fixed depth) | `amplitude: 0.0` |
+| Fixed depth | `amplitude: 0.0` |
 | Longer / shorter dive cycle | `path/depth_sine` → `period` (s) |
 | Cap depth range | `upper_limit` / `lower_limit` (m, negative = depth) |
+| Mission duration | `fatigue` → `time_out` (s, currently `60.0`) |
+| Services called on button press | `reflex` → `service_names` |
+| Topics recorded / bag folder | `memory` → `topics` / `parent_folder` (currently `bags/maui`) |
+
+> In `maui.yaml` the `/record` service is commented out of `reflex/service_names`, so a button press does **not** start a rosbag. Uncomment it to record the run.
 
 Both axes can also be toggled at runtime via the `/path/yaw_toggle` and `/path/depth_toggle` services without restarting the node.
 
 #### `target_follow.launch.py`
-GPS-assisted waypoint navigation. The robot resurfaces to get a GPS fix, navigates toward the target heading, and dives again.  
+GPS-assisted waypoint navigation. The heading setpoint is the bearing from the latest GPS fix to the current waypoint, and the robot advances to the next waypoint once it is within `threshold` metres. A slow depth sine (100 s period, offset above the surface) brings the robot up periodically so it can get new GPS fixes.  
 Config: [`TargetFollow.yaml`](config/TargetFollow.yaml)
 
 ```bash
 ros2 launch maui target_follow.launch.py
 ```
 
-#### `maui_attitude_ctrl.launch.py`
-Attitude and depth stabilisation with a circle path reference, without the RMF safety layer. Useful for tuning the inner control loops.  
-Config: [`MauiAttitudeCtrl.yaml`](config/MauiAttitudeCtrl.yaml)
+| Goal | Parameters to change |
+|---|---|
+| Waypoints | `path/gps_follower` → `points` (flat list `[lat1, lon1, lat2, lon2, …]`) |
+| Waypoint acceptance radius | `path/gps_follower` → `threshold` (m) |
+| Surfacing cycle | `path/depth_sine` → `period`, `amplitude`, `offset` |
+| Mission duration | `fatigue` → `time_out` (s, currently `500.0`) |
+
+### Using a custom config
+
+Any of the launches accepts another YAML file with the same structure as its default config:
 
 ```bash
-ros2 launch maui maui_attitude_ctrl.launch.py
+ros2 launch maui maui.launch.py config_file:=/path/to/my_mission.yaml
 ```
 
----
+### Running part of the stack
 
-### Test launches — partial stack
-
-These launches are for development and tuning. They generally skip the hardware drivers or reduce the stack to isolate a specific component.
-
-#### `wake_up.launch.py`
-Minimal hardware check. Starts all drivers and basic motor functions to verify the robot is operational before a mission.
+There are no dedicated test launches anymore. To run a subset of the stack, launch the subsystem files directly, for example:
 
 ```bash
-ros2 launch maui wake_up.launch.py
-```
-
-#### `control_test.launch.py`
-Sends raw kinematic commands directly to the actuators to characterise the robot's open-loop response.  
-Config: [`ControlTest.yaml`](config/ControlTest.yaml)
-
-```bash
-ros2 launch maui control_test.launch.py
-```
-
-#### `speed_test.launch.py`
-Tests angular velocity control by commanding a body-rate reference and recording the response.  
-Config: [`SpeedTest.yaml`](config/SpeedTest.yaml)
-
-```bash
-ros2 launch maui speed_test.launch.py
-```
-
-#### `test_attitude_ctrl.launch.py`
-Tests the quaternion attitude controller in isolation, without hardware. Requires an external odometry source.  
-Config: [`TestAttitudeCtrl.yaml`](config/TestAttitudeCtrl.yaml)
-
-```bash
-ros2 launch maui test_attitude_ctrl.launch.py
-```
-
-#### `test_yaw_depth_ctrl.launch.py`
-Tests depth and yaw control using a simulated odometry source. No hardware needed.  
-Config: [`TestYawDepthCtrl.yaml`](config/TestYawDepthCtrl.yaml)
-
-```bash
-ros2 launch maui test_yaw_depth_ctrl.launch.py
-```
-
-#### `test_circle_path.launch.py`
-Tests the circle path and depth sine planners with the attitude controller, without the hardware driver layer.  
-Config: [`CirclePath.yaml`](config/CirclePath.yaml)
-
-```bash
-ros2 launch maui test_circle_path.launch.py
-```
-
-#### `sleep.launch.py`
-Minimal stack with no hardware drivers. Starts state estimation and basic motor functions only — useful for offline testing.
-
-```bash
-ros2 launch maui sleep.launch.py
+ros2 launch cerebellum basic_motor_functions.launch.py   # actuator mapping only
+ros2 launch parietal_lobe thalamus.launch.py             # state estimation only
 ```
 
 ---
 
 ## Changing the Default Launch at Boot
 
-The Docker Compose file [`docker/raspi_ros2/compose.yaml`](../../../../docker/raspi_ros2/compose.yaml) defines which launch file runs automatically when the container starts:
+The Docker Compose file [`docker/raspi_ros2/compose.yaml`](../../../docker/raspi_ros2/compose.yaml) defines which launch file runs automatically when the container starts:
 
 ```yaml
-command: >
-  bash -c "
-    colcon build --symlink-install &&
-    source install/local_setup.bash &&
-    ros2 launch maui circle_path.launch.py
-  "
+command:
+  - bash
+  - -c
+  - |
+    set -e
+    source /opt/ros/jazzy/setup.bash
+    cd /home/ros/ros2_ws
+    colcon build --symlink-install
+    source install/setup.bash
+    ros2 launch maui just_keep_swimming.launch.py
 ```
 
-Replace `circle_path.launch.py` with the desired launch file and restart the container:
+Replace `just_keep_swimming.launch.py` with the desired launch file and restart the container:
 
 ```bash
 docker compose down && docker compose up -d

@@ -27,20 +27,10 @@ Config: [`config/Proprioception.yaml`](config/Proprioception.yaml)
 |---|---|
 | `est/robot_state_publisher` | Publishes the robot URDF (`maui_online.urdf.xacro`) on `/robot_description` |
 | `est/joint_pose` (`joint_pose_node`) | Converts `/command` servo outputs to `/est/joint_states` for URDF visualisation |
-| `foxglove_bridge` | WebSocket bridge for live monitoring in Foxglove Studio |
+| `foxglove_bridge` | WebSocket bridge for live monitoring in Foxglove Studio (port 8765) |
 
 ---
 
-### Other launch files
+## Robot description
 
-| File | Description |
-|---|---|
-| `local_ekf.launch.py` | Extended Kalman Filter for local odometry fusion. Config: `Local_EKF.yaml` |
-| `ekf_global.launch.py` | EKF with global GPS fusion. Config: `ekf.yaml` |
-| `dual_ekf.launch.py` | Dual local+global EKF configuration (robot_localization). Config: `dual_ekf_navsat.yaml` |
-
----
-
-## Credits
-
-The EKF configuration files are adapted from the parameter templates of [robot_localization](https://github.com/cra-ros-pkg/robot_localization) (BSD 3-Clause License, Charles River Analytics). See [LICENSE](LICENSE) for the full third-party notice.
+The URDF lives in [`description/`](description/): `maui_online.urdf.xacro` (used at runtime, with joints driven by `/est/joint_states`), `maui.urdf.xacro`, shared `materials.xacro`, and the STL meshes for the body, wings, caudal fins and camera.

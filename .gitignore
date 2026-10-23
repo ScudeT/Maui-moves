@@ -55,3 +55,4 @@ bags/
 # Editor swap files
 *.swp
 *.swo
+.html

@@ -73,7 +73,7 @@ def generate_launch_description():
         package='ms5837',
         executable='pose_node',
         name='ms5837',
-	parameters=[config_file],
+	    parameters=[config_file],
         arguments=['--ros-args', '--log-level', 'WARN'],
         output='screen',
         remappings=[

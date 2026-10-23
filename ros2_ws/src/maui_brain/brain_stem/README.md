@@ -17,3 +17,5 @@ Config: [`config/PNS.yaml`](config/PNS.yaml)
 | `GPS` | `gtu7_gps_comm` | GPS receiver — publishes `/gps_data` |
 | `ms5837` | `ms5837` | Depth/pressure sensor — publishes `/ms5837/pose` |
 | `button` | `temporal_lobe` | GPIO button reader — publishes `/button_state` |
+
+All drivers except `GPS` are passed `PNS.yaml`, which therefore holds the robot's actual sensor settings (IMU filter, covariances and magnetometer bias, depth offset, button GPIO line and debounce timings). The `GPS` section of `PNS.yaml` is currently unused, because the launch passes no parameters to the GPS node.

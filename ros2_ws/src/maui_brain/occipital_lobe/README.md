@@ -1,6 +1,6 @@
 # `occipital_lobe` — Camera Interface
 
-Fetches frames from the Raspberry Pi cameras and publishes them as ROS Image messages. This package has no launch file of its own — its nodes are included in mission launches that require vision.
+Fetches frames from the Raspberry Pi cameras and publishes them as ROS Image messages. This package has no launch file of its own. Both `maui` mission launches define an `eyes` node for it, but it is currently disabled there (`ld.add_action(eyes)` is commented out).
 
 ---
 
@@ -19,5 +19,9 @@ Source URLs: `http://0.0.0.0:5000/capture/cam1` and `/capture/cam2` — served b
 
 ---
 
-### `camera_client_test` (`ImageClientNode`)
-Single-camera test node. Fetches from `http://0.0.0.0:5000/` and publishes on `camera/image`. Used for verifying camera bridge connectivity.
+### `camera_client_test.py` (`ImageClientNode`)
+Single-camera test script. Fetches from `http://0.0.0.0:5000/` and publishes on `camera/image`. Used for verifying camera bridge connectivity. It is not registered as an executable in `setup.py`, so run it directly:
+
+```bash
+python3 occipital_lobe/camera_client_test.py
+```

@@ -1,12 +1,12 @@
 path/circle_yaw:
   ros__parameters:
     freq: 30
-    wz: 0.3
+    wz: 0.0
 
 path/depth_sine:
   ros__parameters:
     freq: 30.0
-    amplitude: 0.2
+    amplitude: 0.0
     period: 20.0
     offset: -0.3
     start_from: 0.1
@@ -21,7 +21,7 @@ eyes:
 reflex:
   ros__parameters:
     service_names: 
-      - '/record'
+      #- '/record'
       - '/attitude/reset_ctrl'
       - '/depth/reset_ctrl'
       - '/input/start_and_stop'
@@ -46,8 +46,8 @@ memory:
       - '/attitude/pitch_set:std_msgs/msg/Float32'
       - '/attitude/yaw_set:std_msgs/msg/Float32'
       - '/depth/z_set:std_msgs/msg/Float32'
-    parent_folder: 'bags/circle_path'
+    parent_folder: 'bags/maui'
 
 fatigue:
   ros__parameters:
-    time_out: 120.0
+    time_out: 60.0

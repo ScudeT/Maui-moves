@@ -9,7 +9,7 @@ ROS 2 driver for the GTU7 GPS receiver. Reads NMEA sentences from the Raspberry 
 | | |
 |---|---|
 | **Interface** | UART `/dev/ttyAMA0` at 9600 baud |
-| **Publish rate** | 10 Hz (polled) |
+| **Polling** | One NMEA line read every 0.1 s; a fix is published for each valid RMC/GGA sentence, so the output rate follows the receiver's update rate |
 
 ### Published topics
 
@@ -23,6 +23,8 @@ ROS 2 driver for the GTU7 GPS receiver. Reads NMEA sentences from the Raspberry 
 |---|---|---|
 | `uere` | `5.0` | User equivalent range error (m) — used to scale DOP into covariance when no GST sentence is available |
 
+In normal operation the node is started as `GPS` by `brain_stem/peripheral_nervous_system.launch.py`, which passes no parameters, so `uere` keeps its default.
+
 ### How covariance is computed
 
 The node parses three NMEA sentence types:
@@ -31,14 +33,4 @@ The node parses three NMEA sentence types:
 - **GSA** — if no GST, HDOP/VDOP are used: `C_h = (HDOP × uere)²` → `COVARIANCE_TYPE_APPROXIMATED`
 - **Neither** → `COVARIANCE_TYPE_UNKNOWN`
 
-Fixes are only published on valid **RMC** (status `A`) or **GGA** (quality > 0) sentences.
-
----
-
-## Other nodes in this package
-
-| Node | Description |
-|---|---|
-| `gps_gpsd_node` | Alternative driver using `gpsd` daemon instead of direct serial |
-| `gps_node_cov` | Variant with explicit covariance tuning |
-| `gps_test` | Simple test node for verifying serial connectivity |
+Fixes are only published on valid **RMC** (status `A`) or **GGA** (quality > 0) sentences. Altitude is only available from GGA; RMC fixes are published with `altitude = NaN`.

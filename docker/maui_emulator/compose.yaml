@@ -1,8 +1,6 @@
-version: '3'
-
 services:
   jazzy:
-    build: /.
+    build: .
     image: maui:jazzy
     container_name: maui_jazzy
     user: ros
@@ -11,14 +9,12 @@ services:
       - QT_X11_NO_MITSHM=1  # Avoids potential issues with shared memory
       - NVIDIA_VISIBLE_DEVICES=all
     volumes:
-      - "${PROJECT_DIRECTORY:-../../ros2_ws}/src:/home/ros/ros2_ws/src" 
-      - "${PROJECT_DIRECTORY:-../../ros2_ws}/bags:/home/ros/ros2_ws/bags" 
+      - "${PROJECT_DIRECTORY:-../../ros2_ws}/src:/home/ros/ros2_ws/src"
+      - "${PROJECT_DIRECTORY:-../../ros2_ws}/bags:/home/ros/ros2_ws/bags"
       - /tmp/.X11-unix:/tmp/.X11-unix  # Mounts the X11 socket
-    network_mode: host  # Uses the host network
+    network_mode: host  # Uses the host network (foxglove bridge on 8765 is reachable directly)
     ipc: host
     privileged: true  # May be needed for full hardware access
-    # Open in the background as bash
     tty: true
-    command: bash 
-    ports:
-      - "8765:8765"
+    # Build the workspace, source it and start the depth-only controller
+    command: bash

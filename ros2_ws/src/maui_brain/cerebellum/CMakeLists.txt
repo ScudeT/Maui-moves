@@ -52,17 +52,6 @@ ament_target_dependencies(pid_node
   tf2
 )
 
-# Attitude controller
-add_executable(attitude_ctrl_node src/attitude_ctrl_node.cpp)
-ament_target_dependencies(attitude_ctrl_node
-  rclcpp
-  std_msgs
-  std_srvs
-  geometry_msgs
-  nav_msgs
-  tf2
-)
-
 # Attitude controller devided
 add_executable(w_ctrl_node src/w_ctrl_node.cpp)
 ament_target_dependencies(w_ctrl_node
@@ -91,34 +80,13 @@ ament_target_dependencies(ypr2q_node
   tf2
 )
 
-add_executable(w_ctrl2_node src/w_ctrl2_node.cpp)
-ament_target_dependencies(w_ctrl2_node
-  rclcpp
-  std_msgs
-  geometry_msgs
-  nav_msgs
-  tf2
-  std_srvs
-)
-add_executable(to_bmf_node src/to_bmf_node.cpp)
-ament_target_dependencies(to_bmf_node
-  rclcpp
-  std_msgs
-  geometry_msgs
-  nav_msgs
-  tf2
-  std_srvs
-)
 
 install(TARGETS
   ctrl_node
   pid_node
-  attitude_ctrl_node
   w_ctrl_node
   q_ctrl_node
   ypr2q_node
-  w_ctrl2_node
-  to_bmf_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

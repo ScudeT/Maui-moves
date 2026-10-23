@@ -48,13 +48,10 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'titan_control = temporal_lobe.titan_control:main',
             'button_read_node = temporal_lobe.button_read_node:main',
             'button_service_caller_node = temporal_lobe.button_service_caller_node:main',
-            'depth_service_caller_node = temporal_lobe.depth_service_caller_node:main',
             'record_service_node=temporal_lobe.record_service_node:main',
             'button_timeout_node = temporal_lobe.button_timeout_node:main',
-            'depth_setter_node = temporal_lobe.depth_setter_node:main',
         ],
     },
 )

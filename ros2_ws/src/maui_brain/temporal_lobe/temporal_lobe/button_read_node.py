@@ -1,92 +1,137 @@
 #!/usr/bin/env python3
+import math
+import time
+
 import rclpy
 from rclpy.node import Node
 import gpiod
 from std_msgs.msg import Bool
-import time
+
+
+LEAK = 2  # integrator decrement for each sample that disagrees
+
 
 class ButtonReader(Node):
+    """
+    Debounced GPIO button reader.
+
+    The line level is sampled at `freq` Hz and fed to a leaky integrator:
+    every sample that agrees with the candidate state counts +1, every sample
+    that disagrees counts -LEAK (floored at 0), so the line has to agree for
+    more than LEAK/(LEAK+1) of the time to make progress. A state change is accepted only
+    when the counter reaches the number of samples equivalent to `press_time`
+    (or `release_time`). Short splashes or intermittent water bridges between
+    the contacts therefore never reach the threshold, while a real press is
+    detected after ~press_time instead of waiting for a long lockout.
+
+    After a confirmed release, presses are ignored for `refractory_time`
+    seconds to reject contact chatter while the switch drains.
+    """
+
     def __init__(self):
         super().__init__('button_reader')
-        
-        # Declare parameters with default values.
-        # freq is the timer frequency in Hz.
-        # gpio_line is the line number for gpiod.Chip.get_line.
-        # break_time is the period (in seconds) to ignore events after a release.
-        # release decides if falling edge (button release) events are published.
-        self.declare_parameter('freq', 100.0)
+
+        # freq:            sampling frequency in Hz.
+        # gpio_line:       line number for gpiod.Chip.get_line.
+        # press_time:      time (s) the line must be (mostly) high to accept a press.
+        # release_time:    time (s) the line must be (mostly) low to accept a release.
+        # refractory_time: time (s) after a release during which presses are ignored.
+        # release:         publish False on button release.
+        self.declare_parameter('freq', 200.0)
         self.declare_parameter('gpio_line', 4)
-        self.declare_parameter('break_time', 1.0)
+        self.declare_parameter('press_time', 0.04)
+        self.declare_parameter('release_time', 0.04)
+        self.declare_parameter('refractory_time', 0.25)
         self.declare_parameter('release', True)
-        
-        # Retrieve parameter values.
-        freq = self.get_parameter('freq').value
-        gpio_line = self.get_parameter('gpio_line').value
-        break_time = self.get_parameter('break_time').value
-        release = self.get_parameter('release').value
-        
-        self.freq = freq
-        self.gpio_line = gpio_line
-        self.break_time = break_time
-        self.release = release
-        
+
+        self.freq = self.get_parameter('freq').value
+        self.gpio_line = self.get_parameter('gpio_line').value
+        self.press_time = self.get_parameter('press_time').value
+        self.release_time = self.get_parameter('release_time').value
+        self.refractory_time = self.get_parameter('refractory_time').value
+        self.release = self.get_parameter('release').value
+
+        if self.freq <= 0:
+            self.get_logger().warn("freq must be > 0, falling back to 200 Hz")
+            self.freq = 200.0
+
+        # Thresholds expressed in samples (at least one sample each)
+        self.n_press = max(1, math.ceil(self.press_time * self.freq))
+        self.n_release = max(1, math.ceil(self.release_time * self.freq))
+
         self.get_logger().info(
             f"Parameters set: freq={self.freq} Hz, gpio_line={self.gpio_line}, "
-            f"break_time={self.break_time}s, release publishing={self.release}"
+            f"press_time={self.press_time}s ({self.n_press} samples), "
+            f"release_time={self.release_time}s ({self.n_release} samples), "
+            f"refractory_time={self.refractory_time}s, release publishing={self.release}"
         )
-        
-        # Calculate timer period from frequency (period = 1/freq).
-        timer_period = 1.0 / self.freq if self.freq > 0 else 0.01
-        
+
         # Publisher for button state (True for pressed, False for released).
         self.publisher_ = self.create_publisher(Bool, 'button_state', 10)
-        
-        # Open GPIO chip and request the specified line.
+
+        # Open GPIO chip and request the line as a plain input with pull-down bias.
         self.chip = gpiod.Chip('/dev/gpiochip0')
         self.line = self.chip.get_line(self.gpio_line)
-        
-        # Request both rising and falling edge events with pull-down bias.
         self.line.request(
             consumer="button_reader",
-            type=gpiod.LINE_REQ_EV_BOTH_EDGES,
+            type=gpiod.LINE_REQ_DIR_IN,
             flags=gpiod.LINE_REQ_FLAG_BIAS_PULL_DOWN
         )
-        
-        # Create a timer to poll for events.
-        self.timer = self.create_timer(timer_period, self.timer_callback)
-        
-        # Timestamp until which events should be ignored.
-        self.ignore_until = 0.0
+
+        # Debounce state
+        self.pressed = False       # accepted (debounced) state
+        self.counter = 0           # leaky integrator towards the opposite state
+        self.ignore_until = 0.0    # end of the refractory window (monotonic time)
+
+        self.timer = self.create_timer(1.0 / self.freq, self.timer_callback)
 
     def timer_callback(self):
         now = time.monotonic()
-        # If still in ignore period, flush (discard) any queued events.
-        if now < self.ignore_until:
-            while self.line.event_wait(0):
-                self.line.event_read()  # Discard stale events.
-            return
-        
-        # Check for a new event (non-blocking).
-        if self.line.event_wait(0):
-            event = self.line.event_read()
-            if event.type == gpiod.LineEvent.RISING_EDGE:
-                self.get_logger().info("Button pressed (rising edge detected)")
-                msg = Bool(data=True)
-                self.publisher_.publish(msg)
-            elif event.type == gpiod.LineEvent.FALLING_EDGE:
+        level = bool(self.line.get_value())
+
+        if not self.pressed:
+            # Refractory window: do not accumulate towards a new press
+            if now < self.ignore_until:
+                self.counter = 0
+                return
+
+            self.counter = self.counter + 1 if level else max(0, self.counter - LEAK)
+
+            if self.counter >= self.n_press:
+                self.pressed = True
+                self.counter = 0
+                self.get_logger().info("Button pressed")
+                self.publisher_.publish(Bool(data=True))
+        else:
+            self.counter = self.counter + 1 if not level else max(0, self.counter - LEAK)
+
+            if self.counter >= self.n_release:
+                self.pressed = False
+                self.counter = 0
+                self.ignore_until = now + self.refractory_time
                 if self.release:
-                    self.get_logger().info("Button released (falling edge detected)")
-                    msg = Bool(data=False)
-                    self.publisher_.publish(msg)
-                # Start ignore period after a falling edge.
-                self.ignore_until = now + self.break_time
+                    self.get_logger().info("Button released")
+                    self.publisher_.publish(Bool(data=False))
+
+    def destroy_node(self):
+        try:
+            self.line.release()
+            self.chip.close()
+        except Exception:
+            pass
+        super().destroy_node()
+
 
 def main(args=None):
     rclpy.init(args=args)
     node = ButtonReader()
-    rclpy.spin(node)
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
     node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
